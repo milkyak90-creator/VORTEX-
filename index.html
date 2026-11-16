@@ -151,7 +151,6 @@ button:active{transform:scale(.97)}
   <div class="a os" id="logo"><b>STAR</b><span>SOCCER 3D</span></div>
   <div class="a cut" id="me">
     <span class="os" id="nm" contenteditable="true" spellcheck="false">PLAYER</span>
-    <div id="tags"><span class="tg">FW</span></div>
   </div>
   <div class="a" id="kit"><span>유니폼</span><button class="sw on" data-c="2f56d6" style="background:#2f56d6"></button><button class="sw" data-c="a8283f" style="background:#a8283f"></button><button class="sw" data-c="e0b51f" style="background:#e0b51f"></button><button class="sw" data-c="1f9e5a" style="background:#1f9e5a"></button></div>
   <button class="a cut os" id="daily" data-t="출석 보상 +100 받았어요!">🎁 출석 보상 받기</button>
@@ -344,12 +343,20 @@ fit();requestAnimationFrame(loop);
   [nick,pw,pw2].forEach(el=>el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();submit();}});
   $('lggoogle').onclick=async()=>{
     if(!auth){say(window.firebase?'FIREBASE_CONFIG를 먼저 설정해 주세요':'Firebase를 불러오지 못했어요. 인터넷에 올린 주소에서 열어 주세요');return;}
-    const pv=new firebase.auth.GoogleAuthProvider();say('');
-    try{await auth.signInWithPopup(pv);}
-    catch(e){if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment')auth.signInWithRedirect(pv);
-      else if(e.code!=='auth/popup-closed-by-user'&&e.code!=='auth/cancelled-popup-request')say(errText(e));}};
+    const pv=new firebase.auth.GoogleAuthProvider();pv.setCustomParameters({prompt:'select_account'});
+    const gb=$('lggoogle');if(gb.disabled)return;gb.disabled=true;say('구글 로그인 창을 여는 중...');
+    try{await auth.signInWithPopup(pv);say('로그인 확인 중...');}
+    catch(e){
+      if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
+        say('구글 화면으로 이동해요...');
+        try{await auth.signInWithRedirect(pv);}catch(e2){say(errText(e2));}
+      }
+      else if(e.code==='auth/popup-closed-by-user'||e.code==='auth/cancelled-popup-request')say('로그인이 취소됐어요. 다시 눌러 주세요');
+      else say(errText(e));
+    }
+    gb.disabled=false;};
   $('lgback').onclick=()=>{if(auth)auth.signOut();setMode('in');};
-  if(cfgOk){firebase.initializeApp(FIREBASE_CONFIG);auth=firebase.auth();db=firebase.firestore();
+  if(cfgOk){firebase.initializeApp(FIREBASE_CONFIG);auth=firebase.auth();db=firebase.firestore();auth.getRedirectResult().catch(e=>say(errText(e)));
     auth.onAuthStateChanged(async u=>{
       if(!u||pending)return;
       let nk=null,err=null;try{nk=await nickOf(u);}catch(e){err=e;}
