@@ -2,7 +2,13 @@
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#070d1c">
-<title>STAR SOCCER 3D</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="VORTEX 사커">
+<title>VORTEX 사커</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
 :root{--or:#ff7a1a;--or2:#ffb02e;--cy:#38d6ff;--bg:#070d1c;--pn:rgba(14,24,48,.82);--ln:rgba(120,170,255,.22);box-sizing:border-box}
@@ -23,7 +29,8 @@ button:active{transform:scale(.97)}
 #cv{left:300px;top:30px;width:320px;height:420px;cursor:grab;touch-action:none}
 /* 패널 (모서리 컷) */
 .cut{background:var(--pn);border:0;clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px);box-shadow:inset 0 0 0 2px var(--ln)}
-#logo{left:32px;top:14px;line-height:.9}
+#logo{left:32px;top:10px;line-height:.9}
+#logo img{display:block;height:84px;width:auto}.lgl img{display:block;height:150px;width:auto;margin:0 auto}.por #logo img{height:64px}
 #logo b{display:block;font-size:46px;letter-spacing:3px;font-style:italic;background:linear-gradient(90deg,#fff,var(--cy));-webkit-background-clip:text;background-clip:text;color:transparent}
 #logo span{font-size:20px;letter-spacing:11px;color:var(--or2)}
 #me{left:32px;top:112px;width:250px;height:104px;padding:14px 16px}
@@ -148,7 +155,7 @@ button:active{transform:scale(.97)}
   <canvas class="a" id="cv" width="320" height="420"></canvas>
   <div class="a" id="hint">↔ 드래그해서 돌려보기</div>
 
-  <div class="a os" id="logo"><b>STAR</b><span>SOCCER 3D</span></div>
+  <div class="a os" id="logo"><img src="logo.png" alt="VORTEX 사커"></div>
   <div class="a cut" id="me">
     <span class="os" id="nm" contenteditable="true" spellcheck="false">PLAYER</span>
   </div>
@@ -163,7 +170,7 @@ button:active{transform:scale(.97)}
     <button class="a cut bt" id="pback">‹</button><div class="a" id="ptitle">모드 선택</div><button class="a cut bt" id="phome">⌂</button>
     <div class="a" id="tabs"></div><div class="a cut" id="pinfo"></div><div class="a" id="cards"></div>
   </div>
-  <div class="a" id="login"><div class="os lgl"><b>STAR</b><span>SOCCER 3D</span></div>
+  <div class="a" id="login"><div class="os lgl"><img src="logo.png" alt="VORTEX 사커"></div>
   <div id="lgtabs"><button class="on" data-m="in">로그인</button><button data-m="up">회원가입</button></div>
   <p id="lghead" style="display:none">닉네임을 정해 주세요<small>게임에서 쓰는 이름이에요. 나중에는 바꿀 수 없어요.</small></p>
   <input id="lgnick" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="username" autocapitalize="off" spellcheck="false">
@@ -367,4 +374,5 @@ fit();requestAnimationFrame(loop);
     if(confirm('로그아웃할까요?')){if(auth)auth.signOut();who=false;lg.style.display='flex';setMode('in');}};
 })();
 </script>
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
 </body></html>
