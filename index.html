@@ -426,11 +426,15 @@ fit();requestAnimationFrame(loop);
 #vxMatch .vx-cancel{background:#101c2d;color:#e8f2ff;box-shadow:0 4px 14px #0008}
 #vxMatch .vx-note{text-align:center;color:#8298ad;font-size:11px;line-height:1.5}
 @media(max-width:640px){
- #vxMatch .vx-wrap{width:96vw;gap:12px}
+ #vxMatch{overflow-y:auto;overscroll-behavior:contain}
+ #vxMatch .vx-wrap{width:96vw;min-height:100dvh;height:auto;justify-content:flex-start;padding:12px 0 24px;gap:12px}
  #vxMatch .vx-head{grid-template-columns:1fr auto;padding:10px;gap:8px}
  #vxMatch .vx-headtitle{grid-column:1/-1;grid-row:2}
  #vxMatch .vx-meta{font-size:10px}
- #vxMatch .vx-teams{grid-template-columns:minmax(0,1fr) 34px minmax(0,1fr);gap:4px}
+ #vxMatch .vx-teams{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:3px;align-items:start}
+ #vxMatch .vx-center{padding-top:110px;gap:10px}
+ #vxMatch .vx-start{margin-top:2px}
+ #vxMatch .vx-bottom{font-size:11px}
  #vxMatch .vx-team h3{padding:9px 7px;font-size:12px}
  #vxMatch .vx-team h3 b{font-size:10px}
  #vxMatch .vx-slot{padding:10px 5px;gap:4px;font-size:11px;min-height:46px}
@@ -522,6 +526,7 @@ fit();requestAnimationFrame(loop);
  const $v=id=>document.getElementById(id);
  let db=window.vortexDb, unsub=null, beat=null, countdown=null, queueTick=null, setupTimer=null, chatUnsub=null, voteUnsub=null, setupConfigUnsub=null, mySlot=null, myId=null, currentCaptainSlot=null, currentCaptainNick='', starting=false, queueStarted=0, aiAdded=false, setupStage=0, chosenFormation='', chosenPosition='', teamVotes=[];
  let ROOM='public-5v5';
+ let localBots=[];
  let roomMode='public', inviteCode='';
  const now=()=>Date.now();
  const nick=()=>((document.getElementById('nm')?.textContent||'PLAYER').trim().slice(0,10)||'PLAYER');
@@ -531,7 +536,11 @@ fit();requestAnimationFrame(loop);
  }
  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
  function render(list){
-   const teams=[[],[]]; list.forEach(x=>teams[x.team===1?1:0].push(x));
+   // 로컬 AI는 Firestore 스냅샷이 갱신되어도 유지하고 실제 참가자가 들어오면 빈자리만 채운다.
+   const real=list.filter(x=>!x.isBot);
+   const merged=real.slice();
+   [0,1].forEach(team=>{let count=merged.filter(x=>x.team===team).length;for(const bot of localBots.filter(x=>x.team===team)){if(count>=5)break;merged.push(bot);count++;}});
+   const teams=[[],[]]; merged.forEach(x=>teams[x.team===1?1:0].push(x));
    // 각 팀에서 가장 먼저 배정된 활성 슬롯(가장 작은 slot)이 주장이다.
    teams.forEach(a=>a.sort((x,y)=>Number(x.slot)-Number(y.slot)));
    const captain0=teams[0][0]||null,captain1=teams[1][0]||null;
@@ -539,7 +548,7 @@ fit();requestAnimationFrame(loop);
    teams.forEach(a=>{while(a.length<5)a.push(null);});
    $v('vxOurSlots').innerHTML=teams[0].slice(0,5).map((x,i)=>slotHtml(x,i,0,!!x&&x===captain0)).join('');
    $v('vxEnemySlots').innerHTML=teams[1].slice(0,5).map((x,i)=>slotHtml(x,i,1,!!x&&x===captain1)).join('');
-   const a=list.filter(x=>x.team===0).length,b=list.filter(x=>x.team===1).length,total=a+b;
+   const a=teams[0].filter(Boolean).length,b=teams[1].filter(Boolean).length,total=a+b;
    $v('vxOurCount').textContent=a+' / 5';$v('vxEnemyCount').textContent=b+' / 5';
    $v('vxCount').textContent='참가자 수 : '+total+' / 10'+(roomMode==='private'?' · 초대 코드 '+inviteCode:'')+' · '+(view==='fp'?'1인칭':'3인칭');
    $v('vxElapsed').textContent=fmtTime(Math.min(60,Math.floor((now()-queueStarted)/1000))); 
@@ -613,21 +622,47 @@ fit();requestAnimationFrame(loop);
    $v('vxSetup').style.display='none';cleanup(false);launch(dest(cur),cur.n===11?11:5);
  }
  $v('vxSetupNext').onclick=()=>finishSetup(false);
- function startQueueClock(){queueStarted=now();aiAdded=false;if(queueTick)clearInterval(queueTick);queueTick=setInterval(()=>{const elapsed=Math.floor((now()-queueStarted)/1000);$v('vxElapsed').textContent=fmtTime(Math.min(60,elapsed));if(elapsed>=60&&!aiAdded&&roomMode==='public'){aiAdded=true;clearInterval(queueTick);queueTick=null;const col=db.collection('vortexRooms').doc(ROOM).collection('peers');col.get().then(snap=>{const list=[];snap.forEach(d=>{const x=d.data();if(x.heartbeat&&now()-x.heartbeat<30000)list.push({...x,slot:Number(d.id.replace('slot',''))});});let c0=list.filter(x=>x.team===0).length,c1=list.filter(x=>x.team===1).length,k=0;while(c0<5||c1<5){const team=c0<5?0:1;list.push({id:'cpu_'+team+'_'+k,nick:['민첩한 선수','푸른 늑대','스피드 스타','강철 수비','정교한 패스','번개 슈터','필드 마스터','골문 수호자','전술가'][k%9],team,heartbeat:now(),isBot:true});if(team===0)c0++;else c1++;k++;}render(list);}).catch(e=>console.error(e));}},250);}
+ function startQueueClock(sharedStartAt){
+   // 모든 기기는 로컬 입장 시간이 아니라 Firestore 방 공통 시작 시각을 사용한다.
+   queueStarted=Number(sharedStartAt)||now();aiAdded=false;localBots=[];if(queueTick)clearInterval(queueTick);
+   queueTick=setInterval(async()=>{
+     const elapsed=Math.floor((now()-queueStarted)/1000);
+     $v('vxElapsed').textContent=fmtTime(Math.min(60,elapsed));
+     if(elapsed>=60&&!aiAdded&&roomMode==='public'){
+       aiAdded=true;clearInterval(queueTick);queueTick=null;
+       try{
+         const col=db.collection('vortexRooms').doc(ROOM).collection('peers');
+         const snap=await col.get(),list=[];
+         snap.forEach(d=>{const x=d.data();if(x.heartbeat&&now()-x.heartbeat<30000)list.push({...x,slot:Number(d.id.replace('slot',''))});});
+         const names=['민첩한 선수','푸른 늑대','스피드 스타','강철 수비','정교한 패스','번개 슈터','필드 마스터','골문 수호자','전술가'];
+         let k=0;
+         [0,1].forEach(team=>{let count=list.filter(x=>x.team===team).length;while(count<5){localBots.push({id:'cpu_'+team+'_'+k,nick:names[k%names.length],team,slot:100+team*5+k,isBot:true});count++;k++;}});
+         render(list);
+       }catch(e){console.error('AI 대체 처리 실패',e);$v('vxStatus').textContent='● AI 구성 실패 · 연결을 확인해 주세요';}
+     }
+   },500);
+ }
  async function claim(){
    if(!db)throw new Error('Firebase Firestore 연결이 없습니다.');
    myId='p_'+Math.random().toString(36).slice(2)+Date.now().toString(36);
    const col=db.collection('vortexRooms').doc(ROOM).collection('peers');
-   await db.runTransaction(async tx=>{
+   const sharedStartAt=await db.runTransaction(async tx=>{
      const refs=[];for(let i=0;i<10;i++)refs.push(col.doc('slot'+i));
      const snaps=[];for(const r of refs)snaps.push(await tx.get(r));
+     const stateRef=db.collection('vortexRooms').doc(ROOM).collection('system').doc('matchState');
+     const stateSnap=await tx.get(stateRef);
+     const active=snaps.some(s=>{const d=s.exists?s.data():null;return !!(d&&d.heartbeat&&now()-d.heartbeat<=30000);});
      let chosen=-1;
      for(let i=0;i<10;i++){const d=snaps[i].exists?snaps[i].data():null;if(!d||!d.heartbeat||now()-d.heartbeat>30000){chosen=i;break;}}
      if(chosen<0)throw new Error('현재 방이 가득 찼습니다. 잠시 후 다시 시도해 주세요.');
+     const existing=stateSnap.exists?Number(stateSnap.data().matchStartedAt):0;
+     const startAt=active&&existing?existing:now();
+     tx.set(stateRef,{matchStartedAt:startAt,phase:'waiting',updatedAt:now()},{merge:true});
      mySlot=chosen;
      tx.set(refs[chosen],{id:myId,nick:nick(),team:chosen<5?0:1,slot:chosen,heartbeat:now(),joinedAt:now()});
+     return startAt;
    });
-   startQueueClock();
+   startQueueClock(sharedStartAt);
    const ref=col.doc('slot'+mySlot);
    unsub=col.onSnapshot(snap=>{
      const list=[];snap.forEach(d=>{const x=d.data();if(x.heartbeat&&now()-x.heartbeat<30000)list.push({...x,slot:Number(d.id.replace('slot',''))});});
@@ -639,11 +674,11 @@ fit();requestAnimationFrame(loop);
    if(unsub){unsub();unsub=null;}if(beat){clearInterval(beat);beat=null;}
    if(countdown){clearInterval(countdown);countdown=null;}if(queueTick){clearInterval(queueTick);queueTick=null;}if(setupTimer){clearInterval(setupTimer);setupTimer=null;}if(chatUnsub){chatUnsub();chatUnsub=null;}if(voteUnsub){voteUnsub();voteUnsub=null;}if(setupConfigUnsub){setupConfigUnsub();setupConfigUnsub=null;}
    if(remove&&db&&mySlot!==null){try{await db.collection('vortexRooms').doc(ROOM).collection('peers').doc('slot'+mySlot).delete();}catch(e){console.warn(e);}}
-   mySlot=null;myId=null;starting=false;
+   mySlot=null;myId=null;starting=false;localBots=[];
  }
  async function openLobby(){
-   overlay.style.display='block';$v('vxStatus').textContent='● '+(roomMode==='private'?'친구 초대 방':'빠른 매칭')+' 연결 중';$v('vxHint').textContent=(roomMode==='private'?'초대 코드 '+inviteCode+' · ':'')+(view==='fp'?'1인칭':'3인칭')+' 플레이어를 찾고 있습니다';$v('vxCountdown').textContent='참가자 대기 중';
-   starting=false;queueStarted=now();$v('vxElapsed').textContent='00:00';
+   localBots=[];overlay.style.display='block';$v('vxStatus').textContent='● '+(roomMode==='private'?'친구 초대 방':'빠른 매칭')+' 연결 중';$v('vxHint').textContent=(roomMode==='private'?'초대 코드 '+inviteCode+' · ':'')+(view==='fp'?'1인칭':'3인칭')+' 플레이어를 찾고 있습니다';$v('vxCountdown').textContent='참가자 대기 중';
+   starting=false;queueStarted=0;$v('vxElapsed').textContent='00:00';
    try{await claim();}catch(e){$v('vxStatus').textContent='● 연결 실패';$v('vxSub').textContent=e.message||'매칭 방에 연결하지 못했습니다';$v('vxHint').textContent='Firestore 설정을 확인해 주세요';console.error(e);}
  }
  document.getElementById('vxCancel').onclick=async()=>{await cleanup(true);overlay.style.display='none';$v('vxSetup').style.display='none';};
